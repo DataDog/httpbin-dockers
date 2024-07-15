@@ -23,8 +23,8 @@ RUN apk update --no-cache \
 WORKDIR /httpbin
 ADD . /httpbin
 
-RUN pip install --no-cache-dir -r requirements.txt
-RUN pip install --no-cache-dir /httpbin
+RUN pip install --break-system-packages --no-cache-dir -r requirements.txt
+RUN pip install --break-system-packages --no-cache-dir /httpbin
 
 ADD containerfiles/alpine-nginx/ /
 

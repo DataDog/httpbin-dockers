@@ -7,6 +7,7 @@ httpbin.core
 This module provides the core HttpBin experience.
 """
 
+from datadog import initialize, statsd
 import base64
 import json
 import os
@@ -25,6 +26,7 @@ from flask import (
     make_response,
     url_for,
     abort,
+    g,
 )
 from six.moves import range as xrange
 from werkzeug.datastructures import WWWAuthenticate, MultiDict
@@ -76,6 +78,16 @@ def jsonify(*args, **kwargs):
         response.data += b"\n"
     return response
 
+
+statsd_enabled = False
+statsd_addr = os.environ.get("STATSD_ADDR")
+if statsd_addr is not None:
+    statsd_enabled = True
+    options = {
+        'statsd_host': statsd_addr,
+        'statsd_port': 8125
+    }
+    initialize(**options)
 
 # Prevent WSGI from correcting the casing of the Location header
 Response.autocorrect_location_header = False
@@ -198,6 +210,7 @@ empties the input request stream.
 
 @app.before_request
 def before_request():
+    g.start_time = time.time_ns()
     if request.environ.get("HTTP_TRANSFER_ENCODING", "").lower() == "chunked":
         server = request.environ.get("SERVER_SOFTWARE", "")
         if server.lower().startswith("gunicorn/"):
@@ -214,6 +227,17 @@ def before_request():
 
 @app.after_request
 def set_cors_headers(response):
+    if statsd_enabled:
+        latency = time.time_ns() - g.start_time
+        tags = [f"resource_name:{request.method}_{request.path}"]
+        if request.scheme == "https":
+            tags.append("tls.library:openssl")
+        if request.environ.get('SERVER_PROTOCOL').startswith("HTTP/2"):
+            tags.append("http.version:http/2")
+        else:
+            tags.append("http.version:http/1.1")
+        statsd.histogram('python_httpbin.timer', latency / 1000000000, tags=tags)
+
     response.headers["X-Powered-By"] = 'httpbin/{0}'.format(version)
     response.headers["Access-Control-Allow-Origin"] = request.headers.get("Origin", "*")
     response.headers["Access-Control-Allow-Credentials"] = "true"
