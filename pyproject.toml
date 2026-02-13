@@ -14,11 +14,17 @@ pyyaml = "^6.0"
 flasgger = "^0.9.5"
 six = "^1.16.0"
 brotli = "^1.0.9"
-gevent = "^22.10.2"
+gevent = "^25.9.1"
 
 
 [tool.poetry.group.dev.dependencies]
 rope = "^1.5.1"
+
+
+[[tool.poetry.source]]
+name = "internal"
+url = "https://depot-read-api-python.us1.ddbuild.io/magicmirror/magicmirror/@current/simple/"
+priority = "primary"
 
 [build-system]
 requires = ["poetry-core"]
